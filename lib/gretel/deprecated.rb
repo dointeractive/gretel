@@ -1,2 +1,1 @@
-require "gretel/deprecated/layout"
-require "gretel/deprecated/show_root_alone"
+Dir[File.dirname(__FILE__) + "/deprecated/*.rb"].each { |file| require file }

@@ -1,13 +1,14 @@
 module Gretel
-  class Renderer
+  class LinkRenderer
     DEFAULT_OPTIONS = {
-      style: :default,
+      style: :inline,
       pretext: "",
       posttext: "",
       separator: "",
       autoroot: true,
       display_single_fragment: false,
       link_current: false,
+      link_last_to_current_path: true,
       semantic: false,
       class: "breadcrumbs",
       current_class: "current",
@@ -15,10 +16,11 @@ module Gretel
     }
 
     DEFAULT_STYLES = {
-      default: { container_tag: :div, separator: " &rsaquo; " },
+      inline: { container_tag: :div, separator: " &rsaquo; " },
       ol: { container_tag: :ol, fragment_tag: :li },
       ul: { container_tag: :ul, fragment_tag: :li },
-      bootstrap: { container_tag: :ol, fragment_tag: :li, class: "breadcrumb", current_class: "active" }
+      bootstrap: { container_tag: :ol, fragment_tag: :li, class: "breadcrumb", current_class: "active" },
+      foundation5: { container_tag: :ul, fragment_tag: :li, class: "breadcrumbs", current_class: "current" }
     }
 
     def initialize(context, breadcrumb_key, *breadcrumb_args)
@@ -32,35 +34,12 @@ module Gretel
       options = options_for_render(options)
       links = links_for_render(options)
 
-      return "" if links.empty?
-
-      # Array to hold the HTML fragments
-      fragments = []
-
-      # Loop through all but the last (current) link and build HTML of the fragments
-      links[0..-2].each do |link|
-        fragments << render_fragment(options[:fragment_tag], link.text, link.url, options[:semantic])
-      end
-
-      # The current link is handled a little differently, and is only linked if specified in the options
-      current_link = links.last
-      fragments << render_fragment(options[:fragment_tag], current_link.text, (options[:link_current] ? current_link.url : nil), options[:semantic], class: options[:current_class])
-
-      # Build the final HTML
-      html = (options[:pretext] + fragments.join(options[:separator]) + options[:posttext]).html_safe
-      content_tag(options[:container_tag], html, id: options[:id], class: options[:class])
-    end
-
-    # Yields links with applied options.
-    def yield_links(options = {})
-      options = options_for_render(options)
-      yield links_for_render(options)
+      LinkCollection.new(context, links, options)
     end
 
     # Returns the parent breadcrumb.
     def parent_breadcrumb(options = {})
-      options = options_for_render(options)
-      links_for_render(options)[-2]
+      render(options)[-2]
     end
 
     # Yields the parent breadcrumb if any.
@@ -68,11 +47,6 @@ module Gretel
       if parent = parent_breadcrumb(options)
         yield parent
       end
-    end
-
-    # Proxy for +context.link_to+ that can be overridden by plugins.
-    def breadcrumb_link_to(name, url, options = {})
-      context.link_to(name, url, options)
     end
 
     private
@@ -104,7 +78,7 @@ module Gretel
       end
 
       # Set current link to actual path
-      if out.any? && request
+      if options[:link_last_to_current_path] && out.any? && request
         out.last.url = request.fullpath
       end
 
@@ -150,43 +124,7 @@ module Gretel
       links
     end
 
-    # Renders HTML for a breadcrumb fragment, i.e. a breadcrumb link.
-    def render_fragment(fragment_tag, text, url, semantic, options = {})
-      if semantic
-        render_semantic_fragment(fragment_tag, text, url, options)
-      else
-        render_nonsemantic_fragment(fragment_tag, text, url, options)
-      end
-    end
-
-    # Renders semantic fragment HTML.
-    def render_semantic_fragment(fragment_tag, text, url, options = {})
-      if fragment_tag
-        text = content_tag(:span, text, itemprop: "title")
-        text = breadcrumb_link_to(text, url, itemprop: "url") if url.present?
-        content_tag(fragment_tag, text, class: options[:class], itemscope: "", itemtype: "http://data-vocabulary.org/Breadcrumb")
-      elsif url.present?
-        content_tag(:div, breadcrumb_link_to(content_tag(:span, text, itemprop: "title"), url, class: options[:class], itemprop: "url"), itemscope: "", itemtype: "http://data-vocabulary.org/Breadcrumb")
-      else
-        content_tag(:div, content_tag(:span, text, class: options[:class], itemprop: "title"), itemscope: "", itemtype: "http://data-vocabulary.org/Breadcrumb")
-      end
-    end
-
-    # Renders regular, non-semantic fragment HTML.
-    def render_nonsemantic_fragment(fragment_tag, text, url, options = {})
-      if fragment_tag
-        text = breadcrumb_link_to(text, url) if url.present?
-        content_tag(fragment_tag, text, class: options[:class])
-      elsif url.present?
-        breadcrumb_link_to(text, url, class: options[:class])
-      elsif options[:class].present?
-        content_tag(:span, text, class: options[:class])
-      else
-        text
-      end
-    end
-
-    # Proxy to view context
+    # Proxy to view context.
     def method_missing(method, *args, &block)
       context.send(method, *args, &block)
     end
@@ -196,7 +134,7 @@ module Gretel
       
       # Registers a style for later use.
       # 
-      #   Gretel::Renderer.register_style :ul, { container_tag: :ul, fragment_tag: :li }
+      #   Gretel::LinkRenderer.register_style :ul, { container_tag: :ul, fragment_tag: :li }
       def register_style(style_key, options)
         styles[style_key] = options
       end

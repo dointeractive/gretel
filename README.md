@@ -115,12 +115,13 @@ Option                   | Description                                          
 
 These are the styles you can use with `breadcrumbs style: :xx`.
 
-Style        | Description
------------- | -----------
-`:default`   | Renders each link by itself with `&rsaquo;` as the seperator.
-`:ol`        | Renders the links in `<li>` elements contained in an outer `<ol>`.
-`:ul`        | Renders the links in `<li>` elements contained in an outer `<ul>`.
-`:bootstrap` | Renders the links for use in [Twitter Bootstrap](http://getbootstrap.com/).
+Style          | Description
+-------------- | -----------
+`:default`     | Renders each link by itself with `&rsaquo;` as the seperator.
+`:ol`          | Renders the links in `<li>` elements contained in an outer `<ol>`.
+`:ul`          | Renders the links in `<li>` elements contained in an outer `<ul>`.
+`:bootstrap`   | Renders the links for use in [Twitter Bootstrap](http://getbootstrap.com/).
+`:foundation5` | Renders the links for use in [Foundation 5](http://foundation.zurb.com/).
 
 Or you can build the breadcrumbs manually for full customization; see below.
 
@@ -254,6 +255,11 @@ When configuring breadcrumbs inside a `crumb :xx do ... end` block, you have acc
 If you have a large site and you want to split your breadcrumbs configuration over multiple files, you can create a folder named `config/breadcrumbs` and put your configuration files (e.g. `products.rb` or `frontend.rb`) in there.
 The format is the same as `config/breadcrumbs.rb` which is also loaded.
 
+### Loading breadcrumbs from engines
+
+Breadcrumbs are automatically loaded from any engines' `config/breadcrumbs.rb` and `config/breadcrumbs/**/*.rb`.
+Breadcrumbs defined in your main app will override breadcrumbs from engines.
+
 ### Inferring breadcrumbs
 
 Breadcrumbs can be automatically inferred if you pass an instance of an object that responds to `model_name` (like an ActiveRecord model instance).
@@ -268,6 +274,33 @@ is short for
 
 ```erb
 <% breadcrumb :product, @product %>
+```
+
+### Passing options to links
+
+You can pass options to links to be used when you render breadcrumbs manually.
+
+In *config/breadcrumbs.rb*:
+
+```ruby
+crumb :something do
+  link "My Link", my_path, title: "My Title", other: "My Other Option"
+end
+```
+
+Example methods you can then use in the view:
+
+```ruby
+breadcrumbs do |links|
+  links.each do |link|
+    link.title?              # => true
+    link.title               # => "My Title"
+    link.other?              # => true
+    link.other               # => "My Other Option"
+    link.nonexisting_option? # => false
+    link.nonexisting_option  # => nil
+  end
+end
 ```
 
 ### Automatic reloading of breadcrumb configuration files
@@ -327,10 +360,19 @@ You are very welcome to help improve Gretel if you have suggestions for features
 To contribute:
 
 1. Fork the project
-2. Create your feature branch (git checkout -b my-new-feature)
-3. Commit your changes (git commit -am 'Add new feature')
-4. Push to the branch (git push origin my-new-feature)
-5. Create new pull request
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Make your changes
+4. Add tests
+5. Prep test database:
+    - `cd test/dummy`
+    - `rake db:test:prepare`
+    - `rake db:migrate`
+6. Run `rake` to make sure all tests pass
+    - `cd test`
+    - `rake`
+7. Commit your changes (`git commit -am 'Add new feature'`)
+8. Push to the branch (`git push origin my-new-feature`)
+9. Create new pull request
 
 Thanks.
 

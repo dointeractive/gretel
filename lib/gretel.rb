@@ -3,7 +3,8 @@ require 'gretel/resettable'
 require 'gretel/crumbs'
 require 'gretel/crumb'
 require 'gretel/link'
-require 'gretel/renderer'
+require 'gretel/link_collection'
+require 'gretel/link_renderer'
 require 'gretel/view_helpers'
 require 'gretel/deprecated'
 
@@ -11,9 +12,19 @@ module Gretel
   class << self
     include Resettable
 
-    # Returns the path from with breadcrumbs are loaded. Default is +config/breadcrumbs.rb+.
+    # Returns the path from with breadcrumbs are loaded. Default is +config/breadcrumbs.rb+
+    # in the app and all loaded engines. Breadcrumbs set in the app will override
+    # breadcrumbs set in engines.
     def breadcrumb_paths
-      @breadcrumb_paths ||= [Rails.root.join("config", "breadcrumbs.rb"), Rails.root.join("config", "breadcrumbs", "**", "*.rb")]
+      @breadcrumb_paths ||= begin
+        engine_roots = Rails::Application::Railties.engines.map { |e| e.config.root }
+        
+        [*engine_roots, Rails.root].map do |root|
+          [root.join("config", "breadcrumbs.rb"),
+           root.join("config", "breadcrumbs", "**", "*.rb"),
+           root.join("app", "views", "breadcrumbs", "**", "*.rb")]
+        end.flatten
+      end
     end
 
     # Sets the path from with breadcrumbs are loaded. Default is +config/breadcrumbs.rb+.
@@ -48,7 +59,7 @@ module Gretel
     # 
     #   Gretel.register_style :ul, { container_tag: :ul, fragment_tag: :li }
     def register_style(style, options)
-      Gretel::Renderer.register_style style, options
+      Gretel::LinkRenderer.register_style style, options
     end
 
     # Sets the Rails environment names with automatic configuration reload. Default is +["development"]+.
